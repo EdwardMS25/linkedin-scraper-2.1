@@ -1,5 +1,5 @@
-const puppeteer = require("puppeteer");
 const express = require("express");
+const puppeteer = require("puppeteer");
 const bodyParser = require("body-parser");
 
 const app = express();
@@ -7,16 +7,15 @@ app.use(bodyParser.json());
 
 app.post("/scrape", async (req, res) => {
   const { email, password } = req.body;
-  let browser;
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+
+  const page = await browser.newPage();
 
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    });
-
-    const page = await browser.newPage();
-
     await page.goto("https://www.linkedin.com/login", { waitUntil: "networkidle2" });
     await page.type("#username", email);
     await page.type("#password", password);
@@ -34,7 +33,7 @@ app.post("/scrape", async (req, res) => {
         if (dateMatch) {
           results.push({
             text: content.slice(0, 200),
-            timeAgo: dateMatch[0]
+            timeAgo: dateMatch[0],
           });
         }
       });
@@ -45,12 +44,12 @@ app.post("/scrape", async (req, res) => {
     res.json(posts);
   } catch (error) {
     console.error("Scrape error:", error);
-    if (browser) await browser.close();
+    await browser.close();
     res.status(500).json({ error: "Scraping failed" });
   }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
