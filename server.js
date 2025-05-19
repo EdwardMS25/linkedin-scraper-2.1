@@ -7,15 +7,15 @@ app.use(bodyParser.json());
 
 app.post("/scrape", async (req, res) => {
   const { email, password } = req.body;
-
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-
-  const page = await browser.newPage();
-
+  let browser;
   try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+
     await page.goto("https://www.linkedin.com/login", { waitUntil: "networkidle2" });
     await page.type("#username", email);
     await page.type("#password", password);
@@ -44,12 +44,12 @@ app.post("/scrape", async (req, res) => {
     res.json(posts);
   } catch (error) {
     console.error("Scrape error:", error);
-    await browser.close();
+    if (browser) await browser.close();
     res.status(500).json({ error: "Scraping failed" });
   }
 });
 
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
