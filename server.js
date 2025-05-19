@@ -7,8 +7,7 @@ app.use(bodyParser.json());
 
 app.post("/scrape", async (req, res) => {
   const { email, password } = req.body;
-
-  let browser = null;
+  let browser;
 
   try {
     browser = await puppeteer.launch({
