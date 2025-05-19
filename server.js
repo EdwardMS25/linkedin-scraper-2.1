@@ -1,8 +1,60 @@
 const express = require("express");
-const app = express();
+const puppeteer = require("puppeteer");
+const bodyParser = require("body-parser");
 
+const app = express();
+app.use(bodyParser.json());
+
+// Health check root
 app.get("/", (req, res) => {
-  res.send("Hello, Render!");
+  res.send("Server is up!");
+});
+
+// This is your main scrape endpoint!
+app.post("/scrape", async (req, res) => {
+  const { email, password } = req.body;
+
+  // Launch browser
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+  });
+
+  const page = await browser.newPage();
+
+  try {
+    await page.goto("https://www.linkedin.com/login", { waitUntil: "networkidle2" });
+    await page.type("#username", email);
+    await page.type("#password", password);
+    await page.click("[type='submit']");
+    await page.waitForNavigation();
+
+    await page.goto("https://www.linkedin.com/feed/", { waitUntil: "networkidle2" });
+
+    // Scrape posts (basic example)
+    const posts = await page.evaluate(() => {
+      const postElements = document.querySelectorAll("div.feed-shared-update-v2");
+      const results = [];
+      postElements.forEach(el => {
+        const content = el.innerText;
+        const dateMatch = content.match(/\d{1,2} (?:h|d|w)/);
+        if (dateMatch) {
+          results.push({
+            text: content.slice(0, 200),
+            timeAgo: dateMatch[0]
+          });
+        }
+      });
+      return results;
+    });
+
+    await browser.close();
+    res.json(posts);
+  } catch (error) {
+    console.error("Scrape error:", error);
+    await browser.close();
+    res.status(500).json({ error: "Scraping failed" });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
